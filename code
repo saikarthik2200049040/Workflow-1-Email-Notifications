@@ -1,0 +1,72 @@
+mport smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import pandas as pd
+from googleapiclient.discovery import build
+
+# YouTube API setup
+YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY'
+CHANNEL_ID = 'INTERNSHIP_STUDIO_CHANNEL_ID'
+
+# Email setup
+SMTP_SERVER = 'smtp.gmail.com'
+SMTP_PORT = 587
+SENDER_EMAIL = 'your_email@gmail.com'
+SENDER_PASSWORD = 'your_email_password'
+RECIPIENT_EMAIL = 'recipient_email@gmail.com'
+
+# Excel setup
+EXCEL_FILE = 'internship_studio_videos.xlsx'
+
+def get_latest_video(channel_id):
+    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+    request = youtube.search().list(part='snippet', channelId=channel_id, maxResults=1, order='date')
+    response = request.execute()
+    return response['items'][0] if response['items'] else None
+
+def send_email(subject, body):
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = RECIPIENT_EMAIL
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+    server.starttls()
+    server.login(SENDER_EMAIL, SENDER_PASSWORD)
+    text = msg.as_string()
+    server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, text)
+    server.quit()
+
+def update_excel(video_details):
+    df = pd.read_excel(EXCEL_FILE)
+    df = df.append(video_details, ignore_index=True)
+    df.to_excel(EXCEL_FILE, index=False)
+
+def main():
+    video = get_latest_video(CHANNEL_ID)
+    if video:
+        video_id = video['id']['videoId']
+        title = video['snippet']['title']
+        description = video['snippet']['description']
+        published_at = video['snippet']['publishedAt']
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        
+        # Send email notification
+        subject = f"New video uploaded: {title}"
+        body = f"{description}\\n\\nWatch here: {video_url}"
+        send_email(subject, body)
+        
+        # Update Excel sheet
+        video_details = {
+            'Title': title,
+            'Description': description,
+            'URL': video_url,
+            'Published At': published_at
+        }
+        update_excel(video_details)
+
+if __name__ == "__main__":
+    main()
+"""
+
+add_code_slide(prs, "Workflow 2: Code Implementation", code_gmail)
